@@ -18,25 +18,37 @@ At each phase boundary, the skill pauses and asks for your confirmation before p
 
 ## Installation
 
-### Option 1: Copy the skill file directly
+### Option 1: `npx skills` (recommended)
+
+Uses the [open agent skills CLI](https://github.com/vercel-labs/skills).
+
+```bash
+# Install into the current project (.claude/skills/)
+npx skills add msanvido/autoperformance-optimization
+
+# Or install globally (~/.claude/skills/)
+npx skills add msanvido/autoperformance-optimization -g
+```
+
+### Option 2: Copy the skill file directly
 
 ```bash
 # From your project root
 mkdir -p .claude/skills/autoperformance-optimization
 curl -o .claude/skills/autoperformance-optimization/SKILL.md \
-  https://raw.githubusercontent.com/msanvido/autoperformance-optimization/main/.claude/skills/SKILL.md
+  https://raw.githubusercontent.com/msanvido/autoperformance-optimization/main/skills/autoperformance-optimization/SKILL.md
 ```
 
-### Option 2: Clone and symlink
+### Option 3: Clone and symlink
 
 ```bash
 # Clone the repo somewhere on your machine
 git clone https://github.com/msanvido/autoperformance-optimization.git ~/tools/autoperformance-optimization
 
 # Symlink the skill into your project
-mkdir -p .claude/skills/autoperformance-optimization
-ln -s ~/tools/autoperformance-optimization/.claude/skills/SKILL.md \
-  .claude/skills/autoperformance-optimization/SKILL.md
+mkdir -p .claude/skills
+ln -s ~/tools/autoperformance-optimization/skills/autoperformance-optimization \
+  .claude/skills/autoperformance-optimization
 ```
 
 ## Usage

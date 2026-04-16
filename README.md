@@ -18,33 +18,25 @@ At each phase boundary, the skill pauses and asks for your confirmation before p
 
 ## Installation
 
-### Option 1: Add as a git submodule (recommended)
+### Option 1: Copy the skill file directly
 
 ```bash
 # From your project root
-git submodule add https://github.com/msanvido/autoperformance-optimization.git .claude/skills/autoperformance-optimization
-```
-
-This keeps the skill pinned to a specific commit and makes updates explicit via `git submodule update --remote`.
-
-### Option 2: Copy the skill file directly
-
-```bash
-# From your project root
-mkdir -p .claude/skills
-curl -o .claude/skills/autoperformance-optimization.md \
+mkdir -p .claude/skills/autoperformance-optimization
+curl -o .claude/skills/autoperformance-optimization/SKILL.md \
   https://raw.githubusercontent.com/msanvido/autoperformance-optimization/main/.claude/skills/SKILL.md
 ```
 
-### Option 3: Clone and symlink
+### Option 2: Clone and symlink
 
 ```bash
 # Clone the repo somewhere on your machine
 git clone https://github.com/msanvido/autoperformance-optimization.git ~/tools/autoperformance-optimization
 
 # Symlink the skill into your project
-mkdir -p .claude/skills
-ln -s ~/tools/autoperformance-optimization/.claude/skills/SKILL.md .claude/skills/autoperformance-optimization.md
+mkdir -p .claude/skills/autoperformance-optimization
+ln -s ~/tools/autoperformance-optimization/.claude/skills/SKILL.md \
+  .claude/skills/autoperformance-optimization/SKILL.md
 ```
 
 ## Usage

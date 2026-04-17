@@ -4,7 +4,7 @@ Karpathy's [autoresearch](https://github.com/karpathy/autoresearch) showed that 
 
 The result is **autoperformance-optimization**, a Claude Code skill that turns performance tuning from a manual, intuition-driven process into a systematic, benchmark-driven loop. You point it at a slow endpoint or page, and it does the rest: measures a baseline, proposes strategies, implements them one at a time, benchmarks each against the original, iterates on the winners, and produces a final report with before/after numbers.
 
-This post walks through two real-world examples where this skill delivered 8-11x performance improvements on production systems.
+This post walks through three real-world examples: two where the skill delivered 8-11x speedups on production systems, and one where its discipline stopped us from shipping a regression dressed up as an optimization.
 
 ## The approach
 
@@ -137,6 +137,65 @@ The timezone bug is a good example of why correctness checks matter: the optimiz
 | Direct API response | 5,547ms | 503ms | 11x faster |
 
 The PR shipped with both a Django benchmark management command for backend profiling and Playwright E2E tests for end-to-end regression prevention.
+
+## Example 3: nanochat training loop -- a useful negative result
+
+The first two examples are the happy path: point the skill at a slow thing, get a fast thing back. But the skill is just as valuable when the answer is "don't change anything." This example is a negative result -- and the fact that it *is* a negative result, documented with numbers, is the whole point.
+
+**The problem:** Karpathy's [nanochat](https://github.com/karpathy/nanochat) `runs/runcpu.sh` pipeline (`base_train` + `chat_sft`) takes about 40 minutes on an M3 Max MacBook Pro. The question: can we meaningfully speed it up while keeping hyperparameters identical and final metrics bit-exact?
+
+**Phase 1 -- Baseline and profile:**
+
+The skill built a reproducible benchmark harness (`bench/run_bench.py`, `bench/profile_step.py`, paired interleaved comparisons) and produced a per-step breakdown:
+
+| Stage | Time | % of step |
+|---|---|---|
+| **Backward** | **442 ms** | **62 %** |
+| Forward | 221 ms | 31 % |
+| Optimizer (MuonAdamW) | 41 ms | 6 % |
+| Data load | 13 ms | 2 % |
+| **Total step** | **718 ms** | 100 % |
+
+Two sanity checks mattered. Disabling `torch.compile` made each step **1.9x slower** (608ms -> 1153ms) -- the Inductor MPS backend is doing real fusion work, not just noise. And `mode="reduce-overhead"` vs default was within noise.
+
+**Key insight:** backward is 62% of the step. The optimizer is only 6%, which already puts a hard ceiling on any "make Muon faster" strategy.
+
+**Phase 2 -- Strategies proposed:**
+
+| # | Strategy | Expected impact | Risk |
+|---|---|---|---|
+| A | Eliminate `torch.cat` in RoPE + smear | Med | Low |
+| B | Muon optimizer without stack/unstack copies (persistent stacked buffer, `.data` view rebinding) | High (if optimizer is bottleneck) | Med |
+| C | Chunked cross-entropy to avoid the 2 GB fp32 logits tensor | **High** | Med |
+
+**Phase 3 -- Implementation and measurement:**
+
+Each strategy on its own branch, bit-exact parity vs master at step 30 (same final loss = 8.4426), paired interleaved runs to control for MPS thermal drift:
+
+| Strategy | Median dt/step | vs baseline | Loss parity |
+|---|---|---|---|
+| baseline (`master`) | **607 ms** | -- | -- |
+| A: RoPE/smear no-cat | 624 ms | **+3 % slower** | bit-exact |
+| B: Muon no-copy | 627 ms | **+3 % slower** | bit-exact |
+| C: chunked CE | 1085 ms | **+79 % slower** | last-digit drift |
+
+Every strategy failed the skill's >10% improvement threshold. Two were small regressions, one was catastrophic.
+
+**Why the expected winners regressed:**
+
+- **A:** `torch.compile` was already fusing the split-halves RoPE into one kernel. The llama-style rewrite traded four half-width ops for two full-width ones at the same arithmetic cost -- and Inductor's MPS kernel for the rewritten form ran marginally slower.
+- **B:** The `.data` view rebinding preserved `.is_leaf` and was sound, but it inhibited a micro-optimization `torch.compile` was applying to the original `torch.stack(params)` path. Given the optimizer is only 6% of the step, there was almost no headroom to cover the loss.
+- **C:** Chunked CE should have been the biggest win -- the full logits tensor is ~2 GB on MPS (`32 × 512 × 32768 × 4 bytes`). But MPS doesn't amortize kernel launches the way CUDA does for small-K matmuls, the Python `for` loop broke `torch.compile` fusion across chunks, and `F.cross_entropy(reduction='sum')` with a trailing divide drifted in last-digit precision vs `reduction='mean'`. Kernel-launch and fusion costs were bigger than the memory win.
+
+**Phase 4 -- Skipped.** Nothing met the bar to iterate on.
+
+**Phase 5 -- Final recommendation:** Leave `nanochat/gpt.py` and `nanochat/optim.py` unchanged. The existing implementation is well-tuned for CUDA, and MPS adapts to it well enough that obvious-looking local rewrites hurt more than they help. Further MPS speedup work would need to either drop the fp32 constraint (try bf16) or write a custom Metal kernel for the softcap+CE backward fusion -- neither of which fits the "same hyperparameters, same metrics" rule.
+
+**Why this matters:**
+
+Without the skill's structure, the three strategies all *look* like obvious wins when you squint at the code. You'd pick one, implement it, and -- if your measurement methodology is even slightly sloppy (no paired comparisons, no warmup discipline, no thermal controls) -- you might even report a speedup that's actually noise. The skill's requirements (paired interleaved runs, bit-exact loss parity, >10% threshold before accepting) turned "this feels faster" into "this is measurably 3% slower." The correct action is to do nothing, and that's now documented with numbers anyone can reproduce.
+
+The branches and benchmark harness were kept in git history -- future investigators on different hardware (or with a relaxed numerics constraint) can pick them up without re-deriving the setup.
 
 ## Why a skill?
 

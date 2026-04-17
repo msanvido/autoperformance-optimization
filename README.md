@@ -65,12 +65,13 @@ Claude Code will then walk you through the 5-phase process, asking for your inpu
 
 ## Example results
 
-This skill has been used to deliver significant performance improvements on production systems:
+This skill has been used to deliver significant performance improvements on production systems -- and, just as importantly, to prevent shipping regressions disguised as optimizations:
 
 | Target | Before | After | Improvement |
 |--------|--------|-------|-------------|
 | Inbox dashboard API | ~6s (warm) / ~11s (cold) | ~500ms (warm) / ~4s (cold) | 11x / 2.6x faster |
 | Activity digest page | ~20s (full load) | ~2.5s (first page) | 8x faster |
+| [nanochat](https://github.com/karpathy/nanochat) training loop (M3 Max MPS) | 607 ms/step | 607 ms/step | **No change -- all 3 proposed strategies regressed under bit-exact constraints; shipping nothing was the correct answer** |
 
 See [BLOG.md](BLOG.md) for detailed write-ups of these optimizations.
 

@@ -1,8 +1,8 @@
 # autoperformance-optimization
 
-A [Claude Code](https://claude.ai/code) skill for systematic, data-driven performance optimization. Inspired by Karpathy's [autoresearch](https://github.com/karpathy/autoresearch), but applied to performance engineering.
+An [agent skill](https://github.com/vercel-labs/skills) for systematic, data-driven performance optimization. Works with any agent in the [open skills ecosystem](https://github.com/vercel-labs/skills#available-agents) -- Claude Code, Cursor, Codex, OpenCode, and [many more](https://github.com/vercel-labs/skills#available-agents). Inspired by Karpathy's [autoresearch](https://github.com/karpathy/autoresearch), but applied to performance engineering.
 
-Give Claude Code a slow endpoint or page, and it will benchmark it, propose optimization strategies, implement them one at a time, measure each against the baseline, iterate on the winners, and ship the best result -- all with your approval at every step.
+Give your coding agent a slow endpoint or page, and it will benchmark it, propose optimization strategies, implement them one at a time, measure each against the baseline, iterate on the winners, and ship the best result -- all with your approval at every step.
 
 ## How it works
 
@@ -20,40 +20,36 @@ At each phase boundary, the skill pauses and asks for your confirmation before p
 
 ### Option 1: `npx skills` (recommended)
 
-Uses the [open agent skills CLI](https://github.com/vercel-labs/skills).
+Uses the [open agent skills CLI](https://github.com/vercel-labs/skills), which auto-detects your agent(s) and installs to the correct location.
 
 ```bash
-# Install into the current project (.claude/skills/)
+# Install into the current project (auto-detects installed agents)
 npx skills add msanvido/autoperformance-optimization
 
-# Or install globally (~/.claude/skills/)
+# Or install globally for all projects
 npx skills add msanvido/autoperformance-optimization -g
+
+# Target a specific agent explicitly
+npx skills add msanvido/autoperformance-optimization -a claude-code
+npx skills add msanvido/autoperformance-optimization -a cursor
 ```
 
-### Option 2: Copy the skill file directly
+See the [agents list](https://github.com/vercel-labs/skills#available-agents) for all supported agents.
+
+### Option 2: Manual install
+
+The canonical skill lives at [`skills/autoperformance-optimization/SKILL.md`](skills/autoperformance-optimization/SKILL.md). Drop that file (or symlink the folder) into whichever skills directory your agent reads -- e.g. `.claude/skills/autoperformance-optimization/` for Claude Code, or the equivalent path for your agent.
 
 ```bash
-# From your project root
+# Example for Claude Code
 mkdir -p .claude/skills/autoperformance-optimization
 curl -o .claude/skills/autoperformance-optimization/SKILL.md \
   https://raw.githubusercontent.com/msanvido/autoperformance-optimization/main/skills/autoperformance-optimization/SKILL.md
 ```
 
-### Option 3: Clone and symlink
-
-```bash
-# Clone the repo somewhere on your machine
-git clone https://github.com/msanvido/autoperformance-optimization.git ~/tools/autoperformance-optimization
-
-# Symlink the skill into your project
-mkdir -p .claude/skills
-ln -s ~/tools/autoperformance-optimization/skills/autoperformance-optimization \
-  .claude/skills/autoperformance-optimization
-```
-
 ## Usage
 
-Once installed, the skill activates automatically when you ask Claude Code to optimize performance. Trigger phrases include:
+Once installed, the skill activates automatically when you ask your agent to optimize performance. Trigger phrases include:
 
 - "optimize performance of `/api/dashboard`"
 - "this endpoint is too slow, speed it up"
@@ -61,7 +57,7 @@ Once installed, the skill activates automatically when you ask Claude Code to op
 - "benchmark and improve the inbox API response time"
 - "reduce load time for the settings page"
 
-Claude Code will then walk you through the 5-phase process, asking for your input at each decision point.
+Your agent will then walk you through the 5-phase process, asking for your input at each decision point.
 
 ## Example results
 
